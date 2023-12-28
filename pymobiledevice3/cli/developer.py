@@ -26,10 +26,12 @@ from pymobiledevice3.remote.core_device.app_service import AppServiceService
 from pymobiledevice3.remote.core_device.device_info import DeviceInfoService
 from pymobiledevice3.remote.remote_service_discovery import RemoteServiceDiscoveryService
 from pymobiledevice3.services.accessibilityaudit import AccessibilityAudit
+from pymobiledevice3.services.afc import AfcService
 from pymobiledevice3.services.debugserver_applist import DebugServerAppList
 from pymobiledevice3.services.device_arbitration import DtDeviceArbitration
 from pymobiledevice3.services.dtfetchsymbols import DtFetchSymbols
 from pymobiledevice3.services.dvt.dvt_secure_socket_proxy import DvtSecureSocketProxyService
+from pymobiledevice3.services.dvt.dvt_testmanaged_proxy import DvtTestmanagedProxyService
 from pymobiledevice3.services.dvt.instruments.activity_trace_tap import ActivityTraceTap, decode_message_format
 from pymobiledevice3.services.dvt.instruments.application_listing import ApplicationListing
 from pymobiledevice3.services.dvt.instruments.condition_inducer import ConditionInducer
@@ -43,11 +45,15 @@ from pymobiledevice3.services.dvt.instruments.notifications import Notifications
 from pymobiledevice3.services.dvt.instruments.process_control import ProcessControl
 from pymobiledevice3.services.dvt.instruments.screenshot import Screenshot
 from pymobiledevice3.services.dvt.instruments.sysmontap import Sysmontap
+from pymobiledevice3.services.dvt.testmanaged.xcuitest import XCUITestService
+from pymobiledevice3.services.house_arrest import HouseArrestService
+from pymobiledevice3.services.installation_proxy import InstallationProxyService
 from pymobiledevice3.services.remote_fetch_symbols import RemoteFetchSymbolsService
 from pymobiledevice3.services.remote_server import RemoteServer
 from pymobiledevice3.services.screenshot import ScreenshotService
 from pymobiledevice3.services.simulate_location import DtSimulateLocation
 from pymobiledevice3.tcp_forwarder import LockdownTcpForwarder
+
 
 BSC_SUBCLASS = 0x40c
 BSC_CLASS = 0x4
@@ -269,6 +275,32 @@ def screenshot(service_provider: LockdownClient, out):
     """ get device screenshot """
     with DvtSecureSocketProxyService(lockdown=service_provider) as dvt:
         out.write(Screenshot(dvt).get_screenshot())
+
+
+def app_lookup(install_service: InstallationProxyService, bundle_id: str):
+    # TODO: install_service.lookup is not working for RSD，use browse instead
+    # will get 'ConnectionAbortedError' if use lookup
+    app_infos = [v for v in install_service.browse() if v['CFBundleIdentifier'] == bundle_id]
+    if len(app_infos) == 0:
+        raise RuntimeError(f'No app with bundle id {bundle_id} found')
+    return app_infos[0]
+
+
+@dvt.command('xcuitest', cls=Command)
+@click.option('--bundle-id', required=True, help='Bundle ID of the app to test')
+def xcuitest(service_provider: LockdownClient, bundle_id: str):
+    """ start XCUITest
+    Usage example:
+    iOS<17:
+        python -m pymobiledevice3 developer dvt xcuitest --bundle-id com.facebook.WebDriverAgentRunner.xctrunner
+    iOS>=17:
+        python -m pymobiledevice3 developer dvt xcuitest --bundle-id com.facebook.WebDriverAgentRunner.xctrunner --tunnel $UDID
+    """
+    install_service = InstallationProxyService(lockdown=service_provider)
+    app_info = app_lookup(install_service, bundle_id)
+    afc = HouseArrestService(lockdown=service_provider, bundle_id=bundle_id, documents_only=False)
+    
+    XCUITestService(service_provider, afc, app_info).run(bundle_id)
 
 
 @dvt.group('sysmon')
@@ -867,7 +899,6 @@ def condition_set(service_provider: LockdownClient, profile_identifier):
     with DvtSecureSocketProxyService(lockdown=service_provider) as dvt:
         ConditionInducer(dvt).set(profile_identifier)
         wait_return()
-
 
 @developer.command(cls=Command)
 @click.argument('out', type=click.File('wb'))
