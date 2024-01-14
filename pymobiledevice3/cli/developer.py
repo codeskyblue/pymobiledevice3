@@ -45,6 +45,7 @@ from pymobiledevice3.services.dvt.instruments.notifications import Notifications
 from pymobiledevice3.services.dvt.instruments.process_control import ProcessControl
 from pymobiledevice3.services.dvt.instruments.screenshot import Screenshot
 from pymobiledevice3.services.dvt.instruments.sysmontap import Sysmontap
+from pymobiledevice3.services.dvt.testmanaged.authorize_pid import AuthorizePidService
 from pymobiledevice3.services.dvt.testmanaged.xcuitest import XCUITestService
 from pymobiledevice3.services.house_arrest import HouseArrestService
 from pymobiledevice3.services.installation_proxy import InstallationProxyService
@@ -302,6 +303,19 @@ def xcuitest(service_provider: LockdownClient, bundle_id: str):
     
     XCUITestService(service_provider, afc, app_info).run(bundle_id)
 
+
+@dvt.command('authorize_pid', cls=Command)
+@click.argument('pid', type=click.INT)
+def authorize_pid(service_provider: LockdownClient, pid: int):
+    """ authorize PID for testing
+    pymobiledevice3 developer dvt authorize_pid 1234
+    """
+    try:
+        AuthorizePidService(service_provider, pid).run()
+    except:
+        import traceback
+        traceback.print_exc()
+        raise
 
 @dvt.group('sysmon')
 def sysmon():
