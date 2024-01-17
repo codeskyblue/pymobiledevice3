@@ -31,9 +31,9 @@ class XCUITestService:
         self.app_info = app_info
         self.product_major_version = Version(service_provider.product_version).major
 
-    def run(self, 
-            bundle_id: str,            
-            test_runner_env: Optional[dict] = None, 
+    def run(self,
+            bundle_id: str,           
+            test_runner_env: Optional[dict] = None,
             test_runner_args: Optional[list] = None):
         # Test OK with
         # - iPhone SE (iPhone8,4) 15.8

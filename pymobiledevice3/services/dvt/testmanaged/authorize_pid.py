@@ -31,7 +31,7 @@ class AuthorizePidService:
         # Call authorize
         session_identifier = NSUUID.uuid4()
         
-        self.init_ide_channels(session_identifier)
+        self.init_ide_channels()
     
         time.sleep(1)
         self.authorize_test_process_id(self._chan1, self.pid)
